@@ -1,0 +1,65 @@
+package com.syarif.mytodo.view.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewModelScope
+import com.syarif.mytodo.data.model.ItemToDo
+import com.syarif.mytodo.data.model.ToDo
+import com.syarif.mytodo.domain.usecase.GetToDoUseCase
+import com.syarif.mytodo.util.Resource
+import com.syarif.mytodo.view.BaseViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import java.util.UUID
+import javax.inject.Inject
+
+@HiltViewModel
+class EditToDoViewModel @Inject constructor(
+    private val app: Application,
+    private val getToDoUseCase: GetToDoUseCase
+) : BaseViewModel(app){
+    var itemList = mutableListOf<ItemToDo>()
+
+    val itemList2 : List<ItemToDo>
+        get() = itemList
+
+    private var newToDo = MutableLiveData<Resource<ToDo>>()
+    val newToDoData : LiveData<Resource<ToDo>>
+        get() = newToDo
+
+
+    fun addItemToDo(strDescription: String){
+        var item = ItemToDo(
+            UUID.randomUUID().toString(),
+            strDescription,
+            false
+        )
+
+        itemList.add(item)
+    }
+
+    fun updateToDoData(newTodo: ToDo) = viewModelScope.launch(Dispatchers.IO) {
+        //create todoObject instance
+        newTodo.todoList = itemList2
+        newTodo.search = createSearchData()
+
+        newToDo.postValue(Resource.Loading())
+        try {
+            val result = getToDoUseCase.update(newTodo)
+            newToDo.postValue(result)
+        }catch (e: Exception){
+            newToDo.postValue(Resource.Error(e.message.toString()))
+        }
+    }
+
+    fun createSearchData() : String{
+        var result = ""
+        itemList2.forEach {
+            result += "${it.description} "
+        }
+        return result
+    }
+
+}
